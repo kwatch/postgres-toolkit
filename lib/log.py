@@ -18,14 +18,14 @@ DEBUG = logging.DEBUG
 def setLevel(level):
     logger.setLevel(level)
 
-def debug(msg):
-    logger.debug(msg)
+def debug(msg, *args):
+    logger.debug(msg, *args)
 
-def error(msg):
-    logger.error(msg)
+def error(msg, *args):
+    logger.error(msg, *args)
 
-def warning(msg):
-    logger.warning(msg)
+def warning(msg, *args):
+    logger.warning(msg, *args)
 
-def info(msg):
-    logger.info(msg)
+def info(msg, *args):
+    logger.info(msg, *args)
