@@ -213,7 +213,8 @@ Options:
     --help                     Print this help.
 '''
 
-if __name__ == "__main__":
+
+def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "h:p:U:d:Rt:",
                                    ["help", "debug", "host=", "port=", "username=", "dbname=",
@@ -284,3 +285,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
