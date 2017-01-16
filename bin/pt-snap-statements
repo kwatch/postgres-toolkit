@@ -197,7 +197,7 @@ select count(*) as "track_io_timing"
 def usage():
     command = os.path.basename(sys.argv[0])
     usage = USAGE.format(command=command)
-    print(usage)
+    return usage
 
 USAGE = r'''
 Usage: {command} [option...] [interval]
@@ -220,7 +220,7 @@ if __name__ == "__main__":
                                     "reset", "top="])
     except getopt.GetoptError, err:
         log.error(str(err))
-        usage()
+        print(usage())
         sys.exit(2)
 
     host     = None
@@ -250,7 +250,7 @@ if __name__ == "__main__":
             log.setLevel(log.DEBUG)
             debug = True
         elif o in ("--help"):
-            usage()
+            print(usage())
             sys.exit(0)
         else:
             log.error("unknown option: " + o + "," + a)
@@ -272,7 +272,7 @@ if __name__ == "__main__":
             interval = int(args[0])
     except ValueError, err:
         log.error(str(err))
-        usage()
+        print(usage())
         sys.exit(2)
 
     snap = SnapStatements(p, interval, n_top, debug=debug)
