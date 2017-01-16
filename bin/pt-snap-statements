@@ -24,7 +24,7 @@ class SnapStatements:
         if n_top is None:
             n_top = 10000
 
-        log.debug("version: " + str(self.psql.get_version()))
+        log.debug("version: %s", self.psql.get_version())
 
         self.query = self._build_query_string(interval, n_top)
 
@@ -132,7 +132,7 @@ select count(*) as "pg_stat_statements"
 '''[1:]
 
         rs = self.psql.execute_query(query)
-        log.debug("check: " + str(rs))
+        log.debug("check: %r", rs)
 
         if int(rs[1][0]) != 1:
             log.error("pg_stat_statements view not found.")
@@ -146,7 +146,7 @@ select count(*) as "track_io_timing"
 '''[1:]
 
         rs = self.psql.execute_query(query)
-        log.debug("check: " + str(rs))
+        log.debug("check: %r", rs)
 
         if self.psql.get_version() >= 9.2 and int(rs[1][0]) != 1:
             log.warning("track_io_timing is diabled.")
@@ -157,7 +157,7 @@ select count(*) as "track_io_timing"
         query = 'SELECT pg_stat_statements_reset();'
 
         rs = self.psql.execute_query(query)
-        log.debug("reset: " + str(rs))
+        log.debug("reset: %r", rs)
 
         if len(rs) == 0 or rs[0][0] != 'pg_stat_statements_reset':
             log.error("Cannot reset.")
@@ -169,7 +169,7 @@ select count(*) as "track_io_timing"
      	if self.check() is False:
             return False
 
-        log.debug("get: " + self.query)
+        log.debug("get: %s", self.query)
 
         rs = self.psql.execute_query(self.query)
 
@@ -181,7 +181,7 @@ select count(*) as "track_io_timing"
             if avail is True:
                 rs2.append(r)
 
-        log.debug("get: " + str(rs2))
+        log.debug("get: %r", rs2)
 
         self.psql.print_result(rs2)
 
@@ -213,7 +213,7 @@ def main():
                                    ["help", "debug", "host=", "port=", "username=", "dbname=",
                                     "reset", "top="])
     except getopt.GetoptError, err:
-        log.error(str(err))
+        log.error('%s', err)
         print(usage())
         return 2
 
@@ -247,7 +247,7 @@ def main():
             print(usage())
             return 0
         else:
-            log.error("unknown option: " + o + "," + a)
+            log.error("unknown option: %s, %a", o, a)
             return 1
 
     p = PsqlWrapper.PsqlWrapper(host=host, port=port, username=username, dbname=dbname, on_error_stop=True, debug=debug)
@@ -265,7 +265,7 @@ def main():
         else:
             interval = int(args[0])
     except ValueError, err:
-        log.error(str(err))
+        log.error('%s', err)
         print(usage())
         return 2
 
