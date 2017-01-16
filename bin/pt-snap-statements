@@ -55,79 +55,80 @@ class SnapStatements:
             blkwritetime1 = ', sum(blk_write_time) AS blk_write_time'
             blkwritetime2 = ', round( (s1.blk_write_time - coalesce(s2.blk_write_time,0))::numeric, 1) AS "W_TIME" '
 
-        self.query = ' \
-/*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements \
-    AS SELECT userid, \
-              dbid, \
-              %s \
-              query, \
-              sum(calls) AS calls, \
-              sum(total_time) AS total_time, \
-              sum(rows) AS rows, \
-              sum(shared_blks_hit) + sum(local_blks_hit) AS blks_hit, \
-              sum(shared_blks_read) + sum(local_blks_read) + sum(temp_blks_read) AS blks_read, \
-              %s /* blks_dirtied */ \
-              sum(shared_blks_written) + sum(local_blks_written) + sum(temp_blks_written) AS blks_written \
-              %s /* blk_read_time */ \
-              %s /* blk_write_time */ \
-         FROM pg_stat_statements \
-        GROUP BY userid,dbid, %s query; \
- \
-/*SNAP*/ SELECT pg_sleep(%d); \
- \
-/*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements2 \
-    AS SELECT userid, \
-              dbid, \
-              %s /* queryid */ \
-              query, \
-              sum(calls) AS calls, \
-              sum(total_time) AS total_time, \
-              sum(rows) AS rows, \
-              sum(shared_blks_hit) + sum(local_blks_hit) AS blks_hit, \
-              sum(shared_blks_read) + sum(local_blks_read) + sum(temp_blks_read) AS blks_read, \
-              %s /* blks_dirtied */ \
-              sum(shared_blks_written) + sum(local_blks_written) + sum(temp_blks_written) AS blks_written \
-              %s /* blk_read_time */ \
-              %s /* blk_write_time */ \
-         FROM pg_stat_statements \
-        GROUP BY userid,dbid, %s query; \
- \
-SELECT u.usename AS "USER", \
-       d.datname AS "DBNAME", \
-       %s \
-       substring(s1.query, 1, 30) AS "QUERY", \
-       ( s1.calls - coalesce(s2.calls,0) ) AS "CALLS", \
-       ( s1.total_time - coalesce(s2.total_time,0) )::integer AS "T_TIME", \
-       ( s1.rows - coalesce(s2.rows,0) ) AS "ROWS", \
-       ( s1.blks_hit - coalesce(s2.blks_hit,0) ) AS "B_HIT", \
-       ( s1.blks_read - coalesce(s2.blks_read,0) ) AS "B_READ", \
-       %s /* blks_dirtied */ \
-       ( s1.blks_written - coalesce(s2.blks_written,0) ) AS "B_WRTN" \
-       %s /* blk_read_time */ \
-       %s /* blk_write_time */ \
-  FROM snap_pg_stat_statements2 AS s1 \
-       LEFT OUTER JOIN snap_pg_stat_statements s2 ON s1.userid = s2.userid \
-           AND s1.dbid = s2.dbid \
-           AND s1.query = s2.query \
-       LEFT OUTER JOIN pg_database d ON s1.dbid = d.oid \
-       LEFT OUTER JOIN pg_user u ON s1.userid = u.usesysid \
- WHERE ( s1.calls - coalesce(s2.calls,0) ) > 0 \
-   AND s1.query NOT LIKE \'--%%\' \
-   AND s1.query NOT LIKE \'/*SNAP*/ %%\' \
- ORDER BY 6 DESC \
- LIMIT %d; \
-' % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1,
+        self.query = r'''
+/*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements
+    AS SELECT userid,
+              dbid,
+              %s
+              query,
+              sum(calls) AS calls,
+              sum(total_time) AS total_time,
+              sum(rows) AS rows,
+              sum(shared_blks_hit) + sum(local_blks_hit) AS blks_hit,
+              sum(shared_blks_read) + sum(local_blks_read) + sum(temp_blks_read) AS blks_read,
+              %s /* blks_dirtied */
+              sum(shared_blks_written) + sum(local_blks_written) + sum(temp_blks_written) AS blks_written
+              %s /* blk_read_time */
+              %s /* blk_write_time */
+         FROM pg_stat_statements
+        GROUP BY userid,dbid, %s query;
+
+/*SNAP*/ SELECT pg_sleep(%d);
+
+/*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements2
+    AS SELECT userid,
+              dbid,
+              %s /* queryid */
+              query,
+              sum(calls) AS calls,
+              sum(total_time) AS total_time,
+              sum(rows) AS rows,
+              sum(shared_blks_hit) + sum(local_blks_hit) AS blks_hit,
+              sum(shared_blks_read) + sum(local_blks_read) + sum(temp_blks_read) AS blks_read,
+              %s /* blks_dirtied */
+              sum(shared_blks_written) + sum(local_blks_written) + sum(temp_blks_written) AS blks_written
+              %s /* blk_read_time */
+              %s /* blk_write_time */
+         FROM pg_stat_statements
+        GROUP BY userid,dbid, %s query;
+
+SELECT u.usename AS "USER",
+       d.datname AS "DBNAME",
+       %s
+       substring(s1.query, 1, 30) AS "QUERY",
+       ( s1.calls - coalesce(s2.calls,0) ) AS "CALLS",
+       ( s1.total_time - coalesce(s2.total_time,0) )::integer AS "T_TIME",
+       ( s1.rows - coalesce(s2.rows,0) ) AS "ROWS",
+       ( s1.blks_hit - coalesce(s2.blks_hit,0) ) AS "B_HIT",
+       ( s1.blks_read - coalesce(s2.blks_read,0) ) AS "B_READ",
+       %s /* blks_dirtied */
+       ( s1.blks_written - coalesce(s2.blks_written,0) ) AS "B_WRTN"
+       %s /* blk_read_time */
+       %s /* blk_write_time */
+  FROM snap_pg_stat_statements2 AS s1
+       LEFT OUTER JOIN snap_pg_stat_statements s2 ON s1.userid = s2.userid
+           AND s1.dbid = s2.dbid
+           AND s1.query = s2.query
+       LEFT OUTER JOIN pg_database d ON s1.dbid = d.oid
+       LEFT OUTER JOIN pg_user u ON s1.userid = u.usesysid
+ WHERE ( s1.calls - coalesce(s2.calls,0) ) > 0
+   AND s1.query NOT LIKE '--%%'
+   AND s1.query NOT LIKE '/*SNAP*/ %%'
+ ORDER BY 6 DESC
+ LIMIT %d;
+'''[1:] % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1,
      interval,
      queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1,
      queryid2, dirtied2, blkreadtime2, blkwritetime2, n_top)
 
     def check(self):
-        query = ' \
-select count(*) as "pg_stat_statements" \
-  from pg_class c left outer join pg_namespace n \
-         on c.relnamespace = n.oid \
- where n.nspname=\'public\' \
-   and c.relname=\'pg_stat_statements\''
+        query = r'''
+select count(*) as "pg_stat_statements"
+  from pg_class c left outer join pg_namespace n
+         on c.relnamespace = n.oid
+ where n.nspname='public'
+   and c.relname='pg_stat_statements'
+'''[1:]
 
         rs = self.psql.execute_query(query)
         log.debug("check: " + str(rs))
@@ -136,11 +137,12 @@ select count(*) as "pg_stat_statements" \
             log.error("pg_stat_statements view not found.")
             return False
 
-        query = ' \
-select count(*) as "track_io_timing"\
-  from pg_settings \
- where name = \'track_io_timing\' \
-   and setting = \'on\''
+        query = r'''
+select count(*) as "track_io_timing"
+  from pg_settings
+ where name = 'track_io_timing'
+   and setting = 'on'
+'''[1:]
 
         rs = self.psql.execute_query(query)
         log.debug("check: " + str(rs))
