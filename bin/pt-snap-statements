@@ -58,7 +58,7 @@ class SnapStatements:
             blkwritetime1 = ', sum(blk_write_time) AS blk_write_time'
             blkwritetime2 = ', round( (s1.blk_write_time - coalesce(s2.blk_write_time,0))::numeric, 1) AS "W_TIME" '
         #
-        return r'''
+        ddl1_sql = r'''
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements
     AS SELECT userid,
               dbid,
@@ -75,9 +75,13 @@ class SnapStatements:
               %s /* blk_write_time */
          FROM pg_stat_statements
         GROUP BY userid,dbid, %s query;
-
+'''[1:] % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1)
+        #
+        wait_sql = r'''
 /*SNAP*/ SELECT pg_sleep(%d);
-
+'''[1:] % (interval,)
+        #
+        ddl2_sql = r'''
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements2
     AS SELECT userid,
               dbid,
@@ -94,7 +98,9 @@ class SnapStatements:
               %s /* blk_write_time */
          FROM pg_stat_statements
         GROUP BY userid,dbid, %s query;
-
+'''[1:] % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1)
+        #
+        select_sql = r'''
 SELECT u.usename AS "USER",
        d.datname AS "DBNAME",
        %s
@@ -119,10 +125,9 @@ SELECT u.usename AS "USER",
    AND s1.query NOT LIKE '/*SNAP*/ %%'
  ORDER BY 6 DESC
  LIMIT %d;
-'''[1:] % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1,
-     interval,
-     queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1,
-     queryid2, dirtied2, blkreadtime2, blkwritetime2, n_top)
+'''[1:] % (queryid2, dirtied2, blkreadtime2, blkwritetime2, n_top)
+        #
+        return "\n".join((ddl1_sql, wait_sql, ddl2_sql, select_sql))
 
     def check(self):
         query = r'''
