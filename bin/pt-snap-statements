@@ -14,13 +14,6 @@ import PsqlWrapper
 import log
 
 class SnapStatements:
-    def build_where_clause(self, where_clause, cond):
-        if where_clause is None:
-            where_clause = " where "
-        else:
-            where_clause = where_clause + " and "
-        where_clause = where_clause + " " + cond
-        return where_clause
 
     def __init__(self, psql, interval, n_top, debug=False):
         self.debug = debug
