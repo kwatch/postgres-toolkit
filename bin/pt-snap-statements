@@ -195,20 +195,23 @@ select count(*) as "track_io_timing"
         return True
 
 def usage():
-    print ""
-    print "Usage: " + os.path.basename(sys.argv[0]) + " [option...] [interval]"
-    print ""
-    print "Options:"
-    print "    -h, --host=HOSTNAME        Host name of the postgres server"
-    print "    -p, --port=PORT            Port number of the postgres server"
-    print "    -U, --username=USERNAME    User name to connect"
-    print "    -d, --dbname=DBNAME        Database name to connect"
-    print ""
-    print "    -t, --top=NUMBER           Number of queries to be listed"
-    print "    -R, --reset                Reset statistics"
-    print ""
-    print "    --help                     Print this help."
-    print ""
+    command = os.path.basename(sys.argv[0])
+    usage = USAGE.format(command=command)
+    print(usage)
+
+USAGE = r'''
+Usage: {command} [option...] [interval]
+Options:
+    -h, --host=HOSTNAME        Host name of the postgres server
+    -p, --port=PORT            Port number of the postgres server
+    -U, --username=USERNAME    User name to connect
+    -d, --dbname=DBNAME        Database name to connect
+
+    -t, --top=NUMBER           Number of queries to be listed
+    -R, --reset                Reset statistics
+
+    --help                     Print this help.
+'''
 
 if __name__ == "__main__":
     try:
