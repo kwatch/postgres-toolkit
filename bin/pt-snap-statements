@@ -224,7 +224,7 @@ def main():
     n_top    = None
 
     do_reset = False
-
+    help     = False
     debug    = None
 
     for o, a in opts:
@@ -241,14 +241,18 @@ def main():
         elif o in ("-t", "--top"):
             n_top = int(a)
         elif o in ("--debug"):
-            log.setLevel(log.DEBUG)
             debug = True
         elif o in ("--help"):
-            print(usage())
-            return 0
+            help = True
         else:
             log.error("unknown option: %s, %a", o, a)
             return 1
+
+    if help:
+        print(usage())
+        return 0
+    if debug:
+        log.setLevel(log.DEBUG)
 
     p = PsqlWrapper.PsqlWrapper(host=host, port=port, username=username, dbname=dbname, on_error_stop=True, debug=debug)
 
