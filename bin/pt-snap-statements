@@ -207,16 +207,23 @@ Options:
 '''
 
 
-def main():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "h:p:U:d:Rt:",
-                                   ["help", "debug", "host=", "port=", "username=", "dbname=",
-                                    "reset", "top="])
-    except getopt.GetoptError, err:
-        log.error('%s', err)
-        print(usage())
-        return 2
+class CommandOptions(object):
 
+    def __init__(self, host, port, username, dbname, n_top, do_reset, help, debug):
+        self.host     = host
+        self.port     = port
+        self.username = username
+        self.dbname   = dbname
+        self.n_top    = n_top
+        self.do_reset = do_reset
+        self.help     = help
+        self.debug    = debug
+
+
+def parse_command_options(args):
+    opts, args = getopt.getopt(args, "h:p:U:d:Rt:",
+                               ["help", "debug", "host=", "port=", "username=", "dbname=",
+                                "reset", "top="])
     host     = None
     port     = None
     username = None
@@ -245,8 +252,23 @@ def main():
         elif o in ("--help"):
             help = True
         else:
-            log.error("unknown option: %s, %a", o, a)
-            return 1
+            raise getopt.GetoptError("unknown option: %s, %s" % (o, a))
+
+    opts = CommandOptions(host, port, username, dbname, n_top, do_reset, help, debug)
+    return opts, args
+
+
+def main():
+    try:
+        opts, args = parse_command_options(sys.argv[1:])
+    except getopt.GetoptError, err:
+        log.error('%s', err)
+        print(usage())
+        return 2
+
+    x = opts
+    (  host,   port,   username,   dbname,   n_top,   do_reset,   help,   debug ) = \
+    (x.host, x.port, x.username, x.dbname, x.n_top, x.do_reset, x.help, x.debug )
 
     if help:
         print(usage())
