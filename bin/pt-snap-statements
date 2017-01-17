@@ -5,7 +5,7 @@
 #
 # Copyright(c) 2015 Uptime Technologies, LLC.
 
-import sys, os
+import sys, os, re
 libpath = os.path.abspath(os.path.dirname(sys.argv[0]) + "/../lib")
 sys.path.append(libpath)
 
@@ -29,46 +29,27 @@ class SnapStatements:
         self.query = self._build_query_string(interval, n_top)
 
     def _build_query_string(self, interval, n_top):
-        if self.psql.get_version() < 9.4:
-            queryid1 = ''
-            queryid2 = ''
-        else:
-            queryid1 = 'queryid, '
-            queryid2 = 'to_hex(s1.queryid) AS "QUERYID", '
-        #
-        if self.psql.get_version() < 9.2:
-            dirtied1 = ''
-            dirtied2 = ''
-            blkreadtime1 = ''
-            blkreadtime2 = ''
-            blkwritetime1 = ''
-            blkwritetime2 = ''
-        else:
-            dirtied1 = 'sum(shared_blks_dirtied) + sum(local_blks_dirtied) AS blks_dirtied,'
-            dirtied2 = '( s1.blks_dirtied - coalesce(s2.blks_dirtied,0) ) AS "B_DIRT", '
-            blkreadtime1 = ', sum(blk_read_time) AS blk_read_time'
-            blkreadtime2 = ', round( (s1.blk_read_time - coalesce(s2.blk_read_time,0))::numeric, 1) AS "R_TIME"'
-            blkwritetime1 = ', sum(blk_write_time) AS blk_write_time'
-            blkwritetime2 = ', round( (s1.blk_write_time - coalesce(s2.blk_write_time,0))::numeric, 1) AS "W_TIME" '
-        #
         ddl1_sql = r'''
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements
     AS SELECT userid,
               dbid,
-              %s
+              queryid,                               -- #if 9.4
               query,
               sum(calls) AS calls,
               sum(total_time) AS total_time,
               sum(rows) AS rows,
               sum(shared_blks_hit) + sum(local_blks_hit) AS blks_hit,
               sum(shared_blks_read) + sum(local_blks_read) + sum(temp_blks_read) AS blks_read,
-              %s /* blks_dirtied */
+              sum(shared_blks_dirtied) + sum(local_blks_dirtied) AS blks_dirtied,  -- #if 9.2
               sum(shared_blks_written) + sum(local_blks_written) + sum(temp_blks_written) AS blks_written
-              %s /* blk_read_time */
-              %s /* blk_write_time */
+            , sum(blk_read_time) AS blk_read_time    -- #if 9.2
+            , sum(blk_write_time) AS blk_write_time  -- #if 9.2
          FROM pg_stat_statements
-        GROUP BY userid,dbid, %s query;
-'''[1:] % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1)
+        GROUP BY userid,
+                 dbid,
+                 queryid,                            -- #if 9.4
+                 query;
+'''[1:]
         #
         wait_sql = r'''
 /*SNAP*/ SELECT pg_sleep(%d);
@@ -78,35 +59,38 @@ class SnapStatements:
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements2
     AS SELECT userid,
               dbid,
-              %s /* queryid */
+              queryid,                               -- #if 9.4
               query,
               sum(calls) AS calls,
               sum(total_time) AS total_time,
               sum(rows) AS rows,
               sum(shared_blks_hit) + sum(local_blks_hit) AS blks_hit,
               sum(shared_blks_read) + sum(local_blks_read) + sum(temp_blks_read) AS blks_read,
-              %s /* blks_dirtied */
+              sum(shared_blks_dirtied) + sum(local_blks_dirtied) AS blks_dirtied, -- #if 9.2
               sum(shared_blks_written) + sum(local_blks_written) + sum(temp_blks_written) AS blks_written
-              %s /* blk_read_time */
-              %s /* blk_write_time */
+            , sum(blk_read_time) AS blk_read_time    -- #if 9.2
+            , sum(blk_write_time) AS blk_write_time  -- #if 9.2
          FROM pg_stat_statements
-        GROUP BY userid,dbid, %s query;
-'''[1:] % (queryid1, dirtied1, blkreadtime1, blkwritetime1, queryid1)
+        GROUP BY userid,
+                 dbid,
+                 queryid,                            -- #if 9.4
+                 query;
+'''
         #
         select_sql = r'''
 SELECT u.usename AS "USER",
        d.datname AS "DBNAME",
-       %s
+       to_hex(s1.queryid) AS "QUERYID",              -- #if 9.4
        substring(s1.query, 1, 30) AS "QUERY",
        ( s1.calls - coalesce(s2.calls,0) ) AS "CALLS",
        ( s1.total_time - coalesce(s2.total_time,0) )::integer AS "T_TIME",
        ( s1.rows - coalesce(s2.rows,0) ) AS "ROWS",
        ( s1.blks_hit - coalesce(s2.blks_hit,0) ) AS "B_HIT",
        ( s1.blks_read - coalesce(s2.blks_read,0) ) AS "B_READ",
-       %s /* blks_dirtied */
+       ( s1.blks_dirtied - coalesce(s2.blks_dirtied,0) ) AS "B_DIRT",   -- #if 9.2
        ( s1.blks_written - coalesce(s2.blks_written,0) ) AS "B_WRTN"
-       %s /* blk_read_time */
-       %s /* blk_write_time */
+     , round( (s1.blk_read_time - coalesce(s2.blk_read_time,0))::numeric, 1) AS "R_TIME"    -- #if 9.2
+     , round( (s1.blk_write_time - coalesce(s2.blk_write_time,0))::numeric, 1) AS "W_TIME"  -- #if 9.2
   FROM snap_pg_stat_statements2 AS s1
        LEFT OUTER JOIN snap_pg_stat_statements s2 ON s1.userid = s2.userid
            AND s1.dbid = s2.dbid
@@ -118,9 +102,18 @@ SELECT u.usename AS "USER",
    AND s1.query NOT LIKE '/*SNAP*/ %%'
  ORDER BY 6 DESC
  LIMIT %d;
-'''[1:] % (queryid2, dirtied2, blkreadtime2, blkwritetime2, n_top)
+'''[1:] % (n_top,)
         #
-        return "\n".join((ddl1_sql, wait_sql, ddl2_sql, select_sql))
+        sql = "\n".join((ddl1_sql, wait_sql, ddl2_sql, select_sql))
+        sql = self._modify_query_string(sql, self.psql.get_version())
+        return sql
+
+    def _modify_query_string(self, sql, pg_ver):
+        if pg_ver < 9.4:
+            sql = re.sub(r'(.*-- #if 9\.4\n)', r'--\1', sql)
+        if pg_ver < 9.2:
+            sql = re.sub(r'(.*-- #if 9\.2\n)', r'--\1', sql)
+        return sql
 
     def check(self):
         query = r'''
