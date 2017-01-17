@@ -29,7 +29,7 @@ class SnapStatements:
         self.query = self._build_query_string(interval, n_top)
 
     def _build_query_string(self, interval, n_top):
-        ddl1_sql = r'''
+        sql = r'''
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements
     AS SELECT userid,
               dbid,
@@ -49,13 +49,9 @@ class SnapStatements:
                  dbid,
                  queryid,                            -- #if 9.4
                  query;
-'''[1:]
-        #
-        wait_sql = r'''
-/*SNAP*/ SELECT pg_sleep(%d);
-'''[1:] % (interval,)
-        #
-        ddl2_sql = r'''
+
+/*SNAP*/ SELECT pg_sleep({interval});
+
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements2
     AS SELECT userid,
               dbid,
@@ -75,9 +71,7 @@ class SnapStatements:
                  dbid,
                  queryid,                            -- #if 9.4
                  query;
-'''
-        #
-        select_sql = r'''
+
 SELECT u.usename AS "USER",
        d.datname AS "DBNAME",
        to_hex(s1.queryid) AS "QUERYID",              -- #if 9.4
@@ -98,13 +92,11 @@ SELECT u.usename AS "USER",
        LEFT OUTER JOIN pg_database d ON s1.dbid = d.oid
        LEFT OUTER JOIN pg_user u ON s1.userid = u.usesysid
  WHERE ( s1.calls - coalesce(s2.calls,0) ) > 0
-   AND s1.query NOT LIKE '--%%'
-   AND s1.query NOT LIKE '/*SNAP*/ %%'
+   AND s1.query NOT LIKE '--%'
+   AND s1.query NOT LIKE '/*SNAP*/ %'
  ORDER BY 6 DESC
- LIMIT %d;
-'''[1:] % (n_top,)
-        #
-        sql = "\n".join((ddl1_sql, wait_sql, ddl2_sql, select_sql))
+ LIMIT {n_top};
+'''[1:].format(interval=interval, n_top=n_top)
         sql = self._modify_query_string(sql, self.psql.get_version())
         return sql
 
