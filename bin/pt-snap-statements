@@ -261,6 +261,10 @@ def parse_command_options(args):
 def main():
     try:
         opts, args = parse_command_options(sys.argv[1:])
+        try:
+            interval = int(args[0]) if args else None
+        except ValueError as err:
+            raise getopt.GetoptError("%s: integer expected." % (args[0],))
     except getopt.GetoptError as err:
         log.error('%s', err)
         print(usage())
@@ -284,16 +288,9 @@ def main():
         snap.reset()
         return 0
 
-    try:
-        if args:
-            interval = int(args[0])
-        else:
-            log.info("Interval is 10 seconds.")
-            interval = 10
-    except ValueError as err:
-        log.error('%s', err)
-        print(usage())
-        return 2
+    if interval is None:
+        log.info("Interval is 10 seconds.")
+        interval = 10
 
     snap = SnapStatements(p, interval, n_top, debug=debug)
     try:
