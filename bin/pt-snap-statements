@@ -28,8 +28,16 @@ class SnapStatements:
 
         self.query = self._build_query_string(interval, n_top)
 
-    def _build_query_string(self, interval, n_top):
-        sql = r'''
+    def _build_query_string(self, interval, n_top, pg_ver=None):
+        sql = self.SNAP_SQL.format(interval=interval, n_top=n_top)
+        pg_ver = pg_ver or self.psql.get_version()
+        if pg_ver < 9.4:
+            sql = re.sub(r'(.*-- #if 9\.4\n)', r'--\1', sql)
+        if pg_ver < 9.2:
+            sql = re.sub(r'(.*-- #if 9\.2\n)', r'--\1', sql)
+        return sql
+
+    SNAP_SQL = r'''
 /*SNAP*/ CREATE TEMP TABLE snap_pg_stat_statements
     AS SELECT userid,
               dbid,
@@ -96,16 +104,7 @@ SELECT u.usename AS "USER",
    AND s1.query NOT LIKE '/*SNAP*/ %'
  ORDER BY 6 DESC
  LIMIT {n_top};
-'''[1:].format(interval=interval, n_top=n_top)
-        sql = self._modify_query_string(sql, self.psql.get_version())
-        return sql
-
-    def _modify_query_string(self, sql, pg_ver):
-        if pg_ver < 9.4:
-            sql = re.sub(r'(.*-- #if 9\.4\n)', r'--\1', sql)
-        if pg_ver < 9.2:
-            sql = re.sub(r'(.*-- #if 9\.2\n)', r'--\1', sql)
-        return sql
+'''[1:]
 
     def check(self):
         query = r'''
