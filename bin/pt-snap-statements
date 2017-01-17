@@ -285,11 +285,11 @@ def main():
         return 0
 
     try:
-        if (len(args) == 0):
+        if args:
+            interval = int(args[0])
+        else:
             log.info("Interval is 10 seconds.")
             interval = 10
-        else:
-            interval = int(args[0])
     except ValueError as err:
         log.error('%s', err)
         print(usage())
