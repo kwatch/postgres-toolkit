@@ -261,7 +261,7 @@ def parse_command_options(args):
 def main():
     try:
         opts, args = parse_command_options(sys.argv[1:])
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
         log.error('%s', err)
         print(usage())
         return 2
@@ -290,7 +290,7 @@ def main():
             interval = 10
         else:
             interval = int(args[0])
-    except ValueError, err:
+    except ValueError as err:
         log.error('%s', err)
         print(usage())
         return 2
@@ -299,7 +299,7 @@ def main():
     try:
         if snap.get() is False:
             return 1
-    except KeyboardInterrupt, err:
+    except KeyboardInterrupt as err:
         log.info("Terminated.")
         return 1
 
